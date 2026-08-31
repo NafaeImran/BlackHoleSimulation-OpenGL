@@ -12,16 +12,23 @@ struct hitRecord {
     vec3 normal;
 };
 
+
 uniform sampler2D Texture;
 uniform vec2 resolution_u;
 uniform vec3 cameraPos_u;
-uniform vec3 sphereCenter_u;
+uniform vec3 blackholeCenter_u;
 uniform float radius_u;
+uniform float blackholeMass_u;
+uniform float maxSteps_u;
+uniform float d_phi;
 
-
+#define PI  3.1415926535
+#define R_s 1.0
 bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec);
 vec3 ray_color(in ray r);
 vec3 ray_at(in ray r, in float t);
+vec2 L(vec2 U_n, float b);
+vec2 getSkyboxUV(vec3 ray_dir);
 
 void main()
 {
@@ -39,22 +46,59 @@ void main()
 vec3 ray_color(in ray r) {
     hitRecord hit_rec;
     vec3 unit_dir = normalize(r.dir);
-    //    float a = 0.5f * (unit_dir.y + 1.0f);
     vec3 background = texture(Texture, TexCoord).rgb;
 
-    bool valid_hit = hit_sphere(r, 0.0001, 1e25, hit_rec);
-    vec3 n_color;
-    if (valid_hit)
-    n_color = 0.5 * (hit_rec.normal + 1.0f);
 
-    return mix(background, n_color, float(valid_hit));
+
+    //Calculating Impact Parameter
+    vec3 r_rel = r.origin - blackholeCenter_u;
+    float b = length(cross(r.dir, r_rel)) / length(r.dir);
+
+    //normal to orbital plane
+    vec3 n_orbital = cross(r_rel, r.dir);
+    //arbitrary axis for orbital plane
+    vec3 e1 = normalize(r_rel);
+    vec3 e2 = normalize(cross(n_orbital, e1));
+    //Rk4 intial conditions
+    vec2 U_n;//will be used to store u~ and u~'
+    float u_tilde = b / length(r_rel);
+    float mag = sqrt(1 - (u_tilde * u_tilde) + ((R_s / b) * u_tilde * u_tilde * u_tilde));//provides the magnitude of u~' i.e how much u~ is change per delta phi
+    float ray_dir_sign = (dot(r.dir, e1) < 0.0) ? 1.0 : -1.0;//Allows us to perserve the direction of the ray for u~'
+    float u_tilde_prime = ray_dir_sign * mag;
+    float phi_n = 0.0f;
+    U_n = vec2(u_tilde, u_tilde_prime);
+
+    for (int step = 1;step <= maxSteps_u; step++)
+    {
+        if (U_n.x >= (b / R_s))//terminate loop ray goes into the event horizon and enters the blackhole
+        {
+            return vec3(0.0, 0.0, 0.0);
+        }
+        if (U_n.x <= 0.0)//if ray has escaped sample skybox with reflected ray
+        {
+            vec3 finalDir = normalize(cos(phi_n) * e1 + sin(phi_n) * e2);
+            vec2 uv = getSkyboxUV(finalDir);
+            return texture(Texture, uv).rgb;
+
+        }
+        vec2 k_1 = L(U_n, b);
+        vec2 k_2 = L(U_n + ((d_phi / 2) * k_1), b);
+        vec2 k_3 = L(U_n + (d_phi / 2) * k_2, b);
+        vec2 k_4 = L(U_n + (d_phi * k_3), b);
+        U_n = U_n + (d_phi / 6) * (k_1 + (2 * k_2) + (2 * k_3) + k_4);
+        phi_n += d_phi;
+
+    }
+
+
+
 }
 //detects if ray intersected with sphere
 bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec)
 {
     vec3 dir = r.dir;
     vec3 origin = r.origin;
-    vec3 oc = sphereCenter_u - origin;
+    vec3 oc = blackholeCenter_u - origin;
     float a = dot(dir, dir);
     float h = dot(dir, oc);
     float c = dot(oc, oc) - pow(radius_u, 2.0f);
@@ -71,7 +115,7 @@ bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec)
         }
         hit_rec.t = root;
         hit_rec.point = ray_at(r, root);
-        hit_rec.normal = (hit_rec.point - sphereCenter_u) / radius_u;
+        hit_rec.normal = (hit_rec.point - blackholeCenter_u) / radius_u;
         return true;
 
     }
@@ -80,4 +124,16 @@ bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec)
 vec3 ray_at(in ray r, in float t)
 {
     return r.origin + t * r.dir;
+}
+vec2 L(vec2 U_n, float b)
+{
+    float u_prime_tilde = U_n.y;
+    float u_tilde = U_n.x;
+    return vec2(u_prime_tilde, (((3.0 * R_s) / (2.0 * b)) * u_tilde * u_tilde) - u_tilde);
+}
+
+vec2 getSkyboxUV(vec3 ray_dir) {
+    float theta = acos(ray_dir.y);
+    float phi = atan(ray_dir.z, ray_dir.x);
+    return vec2(phi / (2.0 * PI) + 0.5, theta / PI);
 }

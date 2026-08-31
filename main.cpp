@@ -65,6 +65,10 @@ int main() {
     int width, height, nrChannels;
     unsigned char *data = stbi_load("textures/starry_background.jpg", &width, &height,
                                     &nrChannels, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents polar seam lines
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     if (data) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
                      GL_UNSIGNED_BYTE, data);
@@ -100,11 +104,13 @@ int main() {
 
 
     //Camera Setup
-    glm::vec3 camera_pos(0.0f, 0.0f, 0.0f);
+    glm::vec3 camera_pos(0.0f, 0.0f, 10.0f);
     glm::vec2 resolution(SCR_WIDTH, SCR_HEIGHT);
 
-    //sphere Setup
-    glm::vec3 sphere_center(0.0f, 0.0f, -1.0f);
+    //Rk4 Setup
+    glm::vec3 blackholeCenter_u(0.0f, 0.0f, -1.0f);
+    float max_steps = 300.0f;
+    float d_phi = 0.03f;
     float sphere_radius = 0.1f;
     //Rendering Loop
     while (!glfwWindowShouldClose(window)) {
@@ -117,8 +123,9 @@ int main() {
         ourShader.use();
         ourShader.setVec3("cameraPos_u", camera_pos);
         ourShader.setVec2("resolution_u", resolution);
-        ourShader.setVec3("sphereCenter_u", sphere_center);
-        ourShader.setFloat("radius_u", sphere_radius);
+        ourShader.setVec3("blackholeCenter_u", blackholeCenter_u);
+        ourShader.setFloat("maxSteps_u", max_steps); // FIX: Added uniform
+        ourShader.setFloat("d_phi", d_phi);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
