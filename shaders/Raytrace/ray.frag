@@ -15,39 +15,48 @@ struct hitRecord {
 
 uniform sampler2D Texture;
 uniform vec2 resolution_u;
+
+//Camera Uniforms
 uniform vec3 cameraPos_u;
-uniform vec3 blackholeCenter_u;
-uniform float radius_u;
+uniform vec3 cameraFront_u;
+uniform vec3 cameraRight_u;
+uniform vec3 cameraUp_u;
+uniform float fov_u;
+
+//Rk4 Uniforms
 uniform float blackholeMass_u;
 uniform float maxSteps_u;
 uniform float d_phi;
 
+//Blackhole Uniforms
+uniform vec3 blackholeCenter_u;
+uniform float radius_u;
+
 #define PI  3.1415926535
-#define R_s 1.0
 bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec);
 vec3 ray_color(in ray r);
 vec3 ray_at(in ray r, in float t);
-vec2 L(vec2 U_n, float b);
+vec2 L(vec2 U_n, float b, float R_s);
 vec2 getSkyboxUV(vec3 ray_dir);
 
 void main()
 {
     float focal_length = 1.0f;
-    float fov = 45.0f;
     vec2 uv = (gl_FragCoord.xy / resolution_u) * 2.0f - 1.0f;
     uv.x *= (resolution_u.x / resolution_u.y);
-    uv *= tan(radians(fov / 2));
+    uv *= tan(radians(fov_u / 2));
     ray r;
     r.origin = cameraPos_u;
-    r.dir = normalize(vec3(uv, -focal_length));
+    r.dir = normalize(cameraFront_u + uv.x * cameraRight_u + uv.y * cameraUp_u);
     FragColor = vec4(ray_color(r), 1.0f);
 }
 //colors where the ray hits
 vec3 ray_color(in ray r) {
     hitRecord hit_rec;
+
     vec3 unit_dir = normalize(r.dir);
     vec3 background = texture(Texture, TexCoord).rgb;
-
+    float R_s = 2.0 * blackholeMass_u;
 
 
     //Calculating Impact Parameter
@@ -81,51 +90,25 @@ vec3 ray_color(in ray r) {
             return texture(Texture, uv).rgb;
 
         }
-        vec2 k_1 = L(U_n, b);
-        vec2 k_2 = L(U_n + ((d_phi / 2) * k_1), b);
-        vec2 k_3 = L(U_n + (d_phi / 2) * k_2, b);
-        vec2 k_4 = L(U_n + (d_phi * k_3), b);
+        vec2 k_1 = L(U_n, b, R_s);
+        vec2 k_2 = L(U_n + ((d_phi / 2) * k_1), b, R_s);
+        vec2 k_3 = L(U_n + (d_phi / 2) * k_2, b, R_s);
+        vec2 k_4 = L(U_n + (d_phi * k_3), b, R_s);
         U_n = U_n + (d_phi / 6) * (k_1 + (2 * k_2) + (2 * k_3) + k_4);
         phi_n += d_phi;
 
     }
+    return vec3(0.0, 0.0, 0.0);
 
 
 
 }
-//detects if ray intersected with sphere
-bool hit_sphere(in ray r, in float t_min, in float t_max, out hitRecord hit_rec)
-{
-    vec3 dir = r.dir;
-    vec3 origin = r.origin;
-    vec3 oc = blackholeCenter_u - origin;
-    float a = dot(dir, dir);
-    float h = dot(dir, oc);
-    float c = dot(oc, oc) - pow(radius_u, 2.0f);
-    float det = pow(h, 2.0f) - (a * c);
-    float root;
-    if (det >= 0.0f)
-    {
-        float sqrtd = sqrt(det);
-        root = (h - sqrtd) / a;
-        if (root <= t_min || t_max <= root) {
-            root = (h + sqrtd) / a;
-            if (root <= t_min || t_max <= root)
-            return false;
-        }
-        hit_rec.t = root;
-        hit_rec.point = ray_at(r, root);
-        hit_rec.normal = (hit_rec.point - blackholeCenter_u) / radius_u;
-        return true;
 
-    }
-    return false;
-}
 vec3 ray_at(in ray r, in float t)
 {
     return r.origin + t * r.dir;
 }
-vec2 L(vec2 U_n, float b)
+vec2 L(vec2 U_n, float b, float R_s)
 {
     float u_prime_tilde = U_n.y;
     float u_tilde = U_n.x;

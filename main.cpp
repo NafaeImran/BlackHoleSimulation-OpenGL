@@ -4,18 +4,42 @@
 #include <iostream>
 #include "shader.h"
 #define STB_IMAGE_IMPLEMENTATION
+#include <algorithm>
+
 #include "stb_image.h"
 #include "external/glfw-3.4/deps/linmath.h"
+#include "camera.h"
 
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
 void processInput(GLFWwindow *window);
 
-//Screen Size
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+
+//Screen Size
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
+//Camera Setup
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
+bool firstMouse = true;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+glm::vec2 resolution(SCR_WIDTH, SCR_HEIGHT);
+
+
+//Rk4 Setup
+float maxSteps_u = 1000.0f;
+float dphi_u = 0.01f;
+
+//Blackhole Setup
+glm::vec3 blackholeCenter_u(0.0f, 0.0f, -1.0f);
+float blackholeMass_u = 0.5;
 
 int main() {
     glfwInit();
@@ -38,6 +62,11 @@ int main() {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     float vertices[] = {
         // positions(0-2) // texture coords(3-4)
         1.0f, 1.0f, 0.0f, 1.0f, 1.0f, // top right
@@ -58,15 +87,13 @@ int main() {
     glBindTexture(GL_TEXTURE_2D, texture);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     int width, height, nrChannels;
     unsigned char *data = stbi_load("textures/starry_background.jpg", &width, &height,
                                     &nrChannels, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents polar seam lines
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     if (data) {
@@ -103,29 +130,42 @@ int main() {
     glEnableVertexAttribArray(1);
 
 
-    //Camera Setup
-    glm::vec3 camera_pos(0.0f, 0.0f, 10.0f);
-    glm::vec2 resolution(SCR_WIDTH, SCR_HEIGHT);
-
-    //Rk4 Setup
-    glm::vec3 blackholeCenter_u(0.0f, 0.0f, -1.0f);
-    float max_steps = 300.0f;
-    float d_phi = 0.03f;
-    float sphere_radius = 0.1f;
     //Rendering Loop
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        //Displays Stats
+        std::string title = "d_phi: " + std::to_string(dphi_u) + " | steps: " + std::to_string(maxSteps_u) + " | FPS: "
+                            +
+                            std::to_string(1.0f / deltaTime);
+        glfwSetWindowTitle(window, title.c_str());
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         ourShader.use();
-        ourShader.setVec3("cameraPos_u", camera_pos);
+        //Sending Uniforms
+
+        //Camera Uniforms
+        ourShader.setVec3("cameraPos_u", camera.Position);
+        ourShader.setVec3("cameraFront_u", camera.Front);
+        ourShader.setVec3("cameraRight_u", camera.Right);
+        ourShader.setVec3("cameraUp_u", camera.Up);
+        ourShader.setFloat("fov_u", camera.Zoom);
+
+        //Rk4 Uniforms
         ourShader.setVec2("resolution_u", resolution);
+        ourShader.setFloat("maxSteps_u", maxSteps_u);
+        ourShader.setFloat("d_phi", dphi_u);
+
+        //Blackhole Uniforms
         ourShader.setVec3("blackholeCenter_u", blackholeCenter_u);
-        ourShader.setFloat("maxSteps_u", max_steps); // FIX: Added uniform
-        ourShader.setFloat("d_phi", d_phi);
+        ourShader.setFloat("blackholeMass_u", blackholeMass_u);
+
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
@@ -145,10 +185,72 @@ int main() {
 }
 
 void processInput(GLFWwindow *window) {
+    bool shiftPress = false;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        shiftPress = true;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    //allows for changing the mass of the blackhole in realtime
+    float massChange = 0.5 * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
+        if (shiftPress) {
+            blackholeMass_u -= massChange;
+            blackholeMass_u = std::max(blackholeMass_u, 0.0f);
+        } else {
+            blackholeMass_u += massChange;
+        }
+    }
+    float dphiChange = 0.001 * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
+        if (shiftPress) {
+            dphi_u = std::max(dphi_u - dphiChange, 0.0001f);
+        } else {
+            dphi_u = std::min(dphi_u + dphiChange, 0.1f);
+        }
+    }
+    float maxStepsChange = 100 * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+        if (shiftPress) {
+            maxSteps_u = std::max(maxSteps_u - maxStepsChange, 100.0f);
+        } else {
+            maxSteps_u = std::min(maxSteps_u + maxStepsChange, 10000.0f);
+        }
+    }
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
+}
+
+void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
