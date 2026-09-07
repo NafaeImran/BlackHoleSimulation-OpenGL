@@ -1,4 +1,10 @@
 # Black-Hole Simulation Using Opengl
+
+## Preview
+<img width="800" height="450" alt="VideoProject1-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/704e568a-bff2-4fc1-8eaf-ed06f3769e2a" />
+
+
+##
 ## Project Phases:
 - [x] Setup Simple Boiler Plate code necessary for OpenGL
 - [x] Setup a simple path tracer
@@ -9,11 +15,7 @@
 - [ ] Improve background stars following Eric Bruneton's method
 - [ ] Implement realistic physics effects such as redshift
 
-##
-<img width="800" height="450" alt="VideoProject1-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/704e568a-bff2-4fc1-8eaf-ed06f3769e2a" />
 
-
-##
 ## About the project
 This project aims to create a simulation of a non-spinning(Schwarzschild) black hole. The purpose of this project is two fold. Firstly it serves as the start of my journey into the wonderful world of Computer Graphics secondly it will be used to demonstrate 
 in real time the benefits of Eric Bruneton's method of pre-computation over the high cost RK4 integration method for the purposes of simulating a black hole.
