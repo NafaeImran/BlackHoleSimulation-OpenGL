@@ -1,4 +1,4 @@
-# Black-Hole Simulation Using Opengl
+# Black-Hole Simulation Using OpenGL
 
 ## Preview
 <img width="800" height="450" alt="VideoProject1-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/704e568a-bff2-4fc1-8eaf-ed06f3769e2a" />
@@ -41,6 +41,9 @@ quality by decreasing step size(dphi) or the maximum number of steps taken durin
 - Left Shift + M : Decrease Black hole mass
 ### General
 - esc : Quit
+
+## Acknowledgments 
+I would like to thank [learnopengl.com](https://learnopengl.com/) for helping me start my journey in Computer Graphics.
 
 ## References
 [Numerical Simulation of Black Hole Images from photon trajectories in Schwarzschild Geometry](https://arxiv.org/pdf/2608.07031)
