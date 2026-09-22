@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "shader.h"
+#include "vector"
 #define STB_IMAGE_IMPLEMENTATION
 #include <algorithm>
 
@@ -38,8 +39,26 @@ float maxSteps_u = 1000.0f;
 float dphi_u = 0.01f;
 
 //Blackhole Setup
-glm::vec3 blackholeCenter_u(0.0f, 0.0f, -1.0f);
-float blackholeMass_u = 0.5;
+static glm::vec3 blackholeCenter_u(0.0f, 0.0f, -1.0f);
+static float blackholeMass_u = 0.5;
+
+
+//LUT setup
+const int D_WIDTH = 512, D_HEIGHT = 512;
+const int U_WIDTH = 32, U_HEIGHT = 64;
+
+struct EntryD {
+    float t;
+    float delta;
+};
+
+std::vector<EntryD> D_LUT(D_HEIGHT * D_WIDTH);
+
+//constants
+#define EPSILON 1e-5
+#define PI  3.1415926535
+#define MU (4.0/27.0)
+
 
 int main() {
     glfwInit();
@@ -253,4 +272,18 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
+}
+
+void pre_computer(float e) {
+    if (e >= 0) {
+        float t = 0;
+        float u = 0;
+        float u_dot = e;
+        float phi = 0;
+        float dphi = 0;
+        while ((u < 1.0f) & (u_dot >= 0 || dphi < PI)) {
+            if (u_dot >= 0.0f) {
+            }
+        }
+    }
 }
