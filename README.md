@@ -21,7 +21,7 @@ This project simulates a non-spinning (Schwarzschild) black hole in real time. B
 
 - [ ] 
 ## Architecture & Implementation
-The renderer uses a full-screen fragment shader to ray-march photon trajectories across the view frustum. Simulation parameters—including camera orientation, black hole mass ($`M`$), angular step size ($`d\phi`$), and maximum integration steps—are passed dynamically via shader uniforms, allowing interactive inspection of lensing distortion and integration stability at runtime.
+The renderer uses a full-screen fragment shader to ray-march photon trajectories across the view frustum. Simulation parameters including camera orientation, black hole mass ($`M`$), angular step size ($`d\phi`$), and maximum integration steps are passed dynamically via shader uniforms, allowing interactive inspection of lensing distortion and integration stability at runtime.
 
 ## The RK4 Method
 To trace photon trajectories in Schwarzschild spacetime, the shader numerically integrates the orbital geodesic ODE:
