@@ -19,7 +19,6 @@ This project simulates a non-spinning (Schwarzschild) black hole in real time. B
 - [ ] Enhance background starfield rendering following Eric Bruneton's method
 - [ ] Implement relativistic Doppler shift and gravitational redshift
 
-- [ ] 
 ## Architecture & Implementation
 The renderer uses a full-screen fragment shader to ray-march photon trajectories across the view frustum. Simulation parameters including camera orientation, black hole mass ($`M`$), angular step size ($`d\phi`$), and maximum integration steps are passed dynamically via shader uniforms, allowing interactive inspection of lensing distortion and integration stability at runtime.
 
